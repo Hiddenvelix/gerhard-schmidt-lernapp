@@ -2,431 +2,398 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User, AlertTriangle, ArrowRight, ArrowLeft, X, Lock, FileCheck, Scale, Users, History, Activity, Loader, Cpu, Database, Stamp, FileText, ChevronRight, BookOpen, Quote, HeartPulse, ScrollText } from 'lucide-react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-/* ==================================================================================
-   SECTION 1: CONFIG & CONTENT
-   ================================================================================== */
 
-const apiKey = ""; // Environment handles this
+const apiKey = "";
 
+const term = (key, text) =>
+  `<span class="term-link border-b border-dotted border-gray-600 font-bold text-gray-800 cursor-pointer" data-term="${key}">${text}</span>`;
+
+// =====================
+// GLOSSARY (neu, reduziert, notwendig)
+// =====================
 const GLOSSARY = {
-  "ekost": {
-    title: "E-Kost (Entzugskost)",
-    text: "Eine von Dr. Pfannmüller entwickelte 'Sonderdiät' (fettfreier Gemüsebrei). Sie hatte fast keinen Nährwert und führte bei Patienten binnen weniger Monate zum qualvollen Tod durch Entkräftung."
+  aktion_t4: {
+    title: "Aktion T4",
+    text: "Zentral organisierte Phase der NS-Krankenmorde ab 1939. Entscheidungen über Leben und Tod erfolgten anhand von Meldebögen, ohne persönliche Untersuchung der Betroffenen."
   },
-  "pfannmueller": {
-    title: "Dr. Hermann Pfannmüller",
-    text: "Anstaltsdirektor (1938-1945). Überzeugter Nationalsozialist. Er lehnte Gaskammern ab und propagierte das 'natürliche' Sterbenlassen durch Nahrungsentzug als 'humanere' Tötungsmethode."
+  kinder_euthanasie: {
+    title: "„Kinder-Euthanasie“",
+    text: "Systematische Tötung von Kindern mit Behinderungen oder Erkrankungen. Häufig verschleiert durch medizinische Begriffe und Einweisungen in spezielle Abteilungen."
   },
-  "luminal": {
-    title: "Luminal (Phenobarbital)",
-    text: "Ein starkes Beruhigungsmittel. In der 'Kinderfachabteilung' wurde es in massiver Überdosis verwendet, um Kinder über Tage hinweg zu vergiften."
+  tarnsprache: {
+    title: "Tarnsprache",
+    text: "Verwendung medizinisch oder administrativ harmlos klingender Begriffe, um tödliche Maßnahmen zu verschleiern."
   },
-  "hungerhaus": {
-    title: "Hungerhäuser",
-    text: "Die Stationen 17 und 18 in Eglfing-Haar. Hier wurden arbeitsunfähige Patienten isoliert und systematisch mit der E-Kost zu Tode gehungert."
+  meldebogen: {
+    title: "Meldebogen",
+    text: "Standardisiertes Formular zur Erfassung von Patientendaten. Diente als Grundlage zentraler Entscheidungen im Rahmen der Aktion T4."
   },
-  "kinderfachabteilung": {
-    title: "Kinderfachabteilung",
-    text: "Tarnbezeichnung für Stationen, auf denen behinderte Kinder im Rahmen des 'Reichsausschussverfahrens' erfasst, beobachtet und meist ermordet wurden."
-  },
-  "igfarben": {
-    title: "I.G. Farben",
-    text: "Der größte Chemiekonzern der Welt (u.a. Bayer, BASF). Produzierte Medikamente wie Luminal, aber auch das Giftgas Zyklon B."
-  },
-  "persilschein": {
-    title: "Persilschein",
-    text: "Umgangssprachlich für ein Entlastungszeugnis im Entnazifizierungsverfahren. Täter baten oft unbelastete Kollegen um Bestätigung ihrer 'Unschuld'."
-  },
-  "displaced": {
-    title: "Displaced Persons (DPs)",
-    text: "Zivilisten, die durch den Krieg ihren Wohnsitz verloren hatten (Zwangsarbeiter, KZ-Häftlinge). Die US-Armee beschlagnahmte oft deutsche Einrichtungen für sie."
+  hungertod: {
+    title: "Hungertod",
+    text: "Tötungsmethode durch systematische Unterversorgung mit Nahrung, häufig kombiniert mit Sedierung, um den Tod als natürlichen Verlauf erscheinen zu lassen."
   }
 };
 
-// --- INTRO BASED ON "SELEKTION IN DER HEILANSTALT" ---
+// =====================
+// INTRO SLIDES (angepasst, ohne unnötige Fachwörter)
+// =====================
 const INTRO_SLIDES = [
-    {
-        title: "DER ARZT",
-        subtitle: "Dr. Gerhard Schmidt (41)",
-        icon: <User size={64} className="text-gray-700" />,
-        text: `„Ich stehe hier nicht als Richter. Ich stehe hier als Arzt.<br/><br/>
-        Mein Vorgänger sah sich als 'biologischer Soldat', als Vollstrecker einer Ideologie. Ich sehe mich als Diener des Lebens. Die Medizin hat nur einen einzigen, unverhandelbaren Zweck: Heilung. Wo Heilung nicht möglich ist: Linderung.<br/><br/>
-        Ein Arzt, der tötet, ist eine Unmöglichkeit. Er ist ein Widerspruch in sich selbst. Wer das vergisst, hat seinen Beruf verraten.“`,
-        stamp: "IDENTITÄT"
-    },
-    {
-        title: "ÜBER EUTHANASIE",
-        subtitle: "Die Lüge vom 'Guten Tod'",
-        icon: <HeartPulse size={64} className="text-red-900" />,
-        text: `„Das Wort 'Euthanasie' bedeutete einst den 'schönen Tod' – den ärztlichen Beistand im Sterben. Die Machthaber haben dieses Wort gestohlen.<br/><br/>
-        Sie haben es benutzt, um Massenmord als medizinische Handlung zu tarnen. Es ging nie um Erlösung von Leid. Es ging um kalte, ökonomische Nützlichkeit. Der Staat maßte sich an, über den Wert eines Lebens zu urteilen.<br/><br/>
-        Doch Leben ist nicht verfügbar. Es ist heilig. Jedes Leben.“`,
-        stamp: "ETHIK"
-    },
-    {
-        title: "DIE SELEKTION",
-        subtitle: "Der bürokratische Mord",
-        icon: <ScrollText size={64} className="text-blue-900" />,
-        text: `„Das Verbrechen begann nicht mit der Spritze. Es begann auf dem Papier. Mit der 'Selektion'.<br/><br/>
-        Man teilte Menschen ein: Hier die 'Nützlichen', dort die 'Unnützen'. Sobald ein Arzt beginnt, den Wert eines Lebens gegen seine Kosten aufzurechnen, öffnet er das Tor zur Hölle.<br/><br/>
-        Meine Aufgabe ist es nun, diese Logik umzukehren. Ich werde nicht rechnen. Ich werde nicht selektieren. Ich werde dokumentieren.“`,
-        stamp: "PRINZIP"
-    }
+  {
+    title: "Vorwort",
+    subtitle: "Realismus und Quellenbasis der Simulation",
+    icon: <img src="https://i.imgur.com/M6SFiVU.jpeg" alt="Dr. Gerhard Schmidt" className="w-full h-full object-cover opacity-80" />,
+    text: `Diese Lernsimulation basiert auf Inhalten aus Gerhard Schmidts Selektion in der Heilanstalt 1939–1945 (Neuausgabe 2022) und seinen Zeugenaussagen von 1946. Szenarien und Zitate sind teils rekonstruiert und didaktisch zugespitzt; sie sind nicht immer als wörtlich dokumentierte Einzelfälle zu verstehen, orientieren sich aber an der historischen Quellenlage. [Bild: KI-Generiert basierend auf Gerhard Schmidt]`,
+    stamp: "Seminar 25/26"
+  },
+  {
+    title: "Perspektive",
+    subtitle: "Leitung & Aufarbeitung (Nachkriegsphase)",
+    icon: <img src="https://i.imgur.com/M6SFiVU.jpeg" alt="Dr. Gerhard Schmidt" className="w-full h-full object-cover opacity-80" />,
+    text:
+      `Du leitest eine psychiatrische Einrichtung in der unmittelbaren Nachkriegszeit. Dein Alltag ist Verwaltung – aber du stößt auf Hinweise, dass die Klinik Teil der ${term("ns_krankenmorde","NS-Krankenmorde")} war. Du entscheidest, wie du vorgehst: sichern, fragen, eskalieren oder still rekonstruieren.`,
+    stamp: "Seminar 25/26"
+  },
+  {
+    title: "Spielziel",
+    subtitle: "Plausibilität statt Heldengeschichte",
+    icon: <img src="https://i.imgur.com/M6SFiVU.jpeg" alt="Dr. Gerhard Schmidt" className="w-full h-full object-cover opacity-80" />,
+    text:
+      `Ziel ist die Sicherung von Beweismitteln, um rechtliche Konsequenzen für die an den Krankenmorden beteiligten Personen zu ermöglichen. Dabei müssen Verwaltungswege, ${term("tarnsprache","Tarnsprache")}, systematisches Schweigen sowie die Logik hinter ${term("verlegung","Verlegungen")} berücksichtigt werden. In jedem Szenario existiert mindestens eine Option, die das tatsächliche Vorgehen Gerhard Schmidts möglichst realitätsnah widerspiegelt.`,
+    stamp: "von Felix F."
+  },
+  {
+    title: "Mechanik",
+    subtitle: "Stabilität vs. Erkenntnis",
+    icon: <img src="https://i.imgur.com/M6SFiVU.jpeg" alt="Dr. Gerhard Schmidt" className="w-full h-full object-cover opacity-80" />,
+    text:
+      `Jede Entscheidung hat konkrete Konsequenzen: Sie beeinflusst sowohl den Widerstand des Personals als auch die Beweislast. Nach jeder Entscheidung erhältst du eine Rückmeldung, wie nah das gewählte Vorgehen an der historischen Realität liegt.`,
+    stamp: "Viel Erfolg"
+  }
 ];
 
+// =====================
+// NEWS / CONTEXT FEED (ästhetisch, datiert, grob stimmig 45/46)
+// =====================
 const NEWS_HEADLINES = [
-  "+++ 12.11.1945: NÜRNBERGER PROZESSE GEGEN 24 HAUPTKRIEGSVERBRECHER STEHEN KURZ VOR ERÖFFNUNG +++ VERSORGUNGSLAGE KRITISCH +++",
-  "+++ 30.11.1945: ENTLASSUNGSWELLE IN BEHÖRDEN: MILITÄRREGIERUNG VERSCHÄRFT EN TNAZIFIZIERUNG +++",
-  "+++ 05.01.1946: SPURCHKAMMERN NEHMEN ARBEIT AUF +++ EXTREME KÄLTEWELLE LEGT VERKEHR LAHM +++",
-  "+++ 14.02.1946: US-ARMEE BESCHLAGNAHMT WOHNRAUM FÜR 'DISPLACED PERSONS' +++ SPANNUNGEN IN MÜNCHEN +++",
-  "+++ 10.04.1946: LEBENSMITTELRATIONEN IN BRITISCHER ZONE AUF 1000 KALORIEN GESENKT +++",
-  "+++ 20.12.1946: DER HÄRTESTE WINTER SEIT JAHRZEHNTEN +++ KOHLENMANGEL BEDROHT KRANKENHÄUSER +++",
-  "+++ 15.03.1947: ALLIIERTE FORDERN BERICHTE ÜBER 'EUTHANASIE'-VERBRECHEN AN +++"
+  "08.05.1945 — Kapitulation: Behörden im Umbruch, Versorgungslage instabil, Aktenbestände zerstreut.",
+  "20.11.1945 — Öffentliche Debatten über Verbrechen beginnen zögerlich; viele Stellen reagieren defensiv.",
+  "01.01.1946 — Entnazifizierung läuft an: Zuständigkeiten bleiben widersprüchlich, Verfahren stocken.",
+  "28.03.1946 — Ermittlungsdruck steigt: Aussagen werden gesammelt, viele Beteiligte weichen aus.",
+  "Sommer 1946 — Stimmung kippt: Aufklärung vs. „Schlussstrich“-Wunsch, öffentliche Aufmerksamkeit schwankt."
 ];
 
-const term = (key, text) => `<span class="term-link border-b border-dotted border-gray-600 font-bold text-gray-800 cursor-pointer" data-term="${key}">${text}</span>`;
-
+// =====================
+// EVIDENCE FACTORY
+// =====================
 const evidence = {
-    note: (text) => ({ type: 'note', content: `<p class="font-handwriting text-lg leading-tight">${text}</p>`, rot: Math.random() * 10 - 5 + 'deg' }),
-    doc: (title, body) => ({ type: 'paper', content: `<h3 class="font-bold border-b border-black mb-2">${title}</h3><div class="text-[10px] leading-snug font-serif-custom">${body}</div>`, rot: Math.random() * 6 - 3 + 'deg' })
+  note: (text) => ({
+    type: "note",
+    content: text.replace(/\n/g, "<br/>"),
+    rot: `${Math.floor(Math.random() * 7) - 3}deg`
+  }),
+  doc: (title, body) => ({
+    type: "paper",
+    content: `<b>${title}</b><br/><br/>${body.replace(/\n/g, "<br/>")}`,
+    rot: `${Math.floor(Math.random() * 7) - 3}deg`
+  })
 };
 
-// --- FINAL AUTHOR SCENARIOS I-VII ---
+// =====================
+// GAME SCENARIOS (5 Stück, chronologisch)
+// =====================
 const GAME_SCENARIOS = [
+
+  // =====================
+  // SZENARIO 1 – AKTION T4
+  // =====================
   {
-    id: "diet",
-    title: "Die Ernährungstabellen",
-    date: "12. Nov 1945",
-    description: `
-    Spätherbst 1945. Die Klinik arbeitet weiter, als sei nichts geschehen.
-    Doch in den Unterlagen der Küche tauchen systematische Abweichungen auf.
-    Bestimmte Stationen erhalten seit Monaten eine sogenannte ${term('ekost', 'E-Kost')}.<br/><br/>
-    Die Sterbezahlen dieser Stationen steigen gleichmäßig, ohne Seuchenausbruch,
-    ohne akute Krankheit, ohne medizinische Intervention.
-    Das Personal reagiert nervös. Einzelne Akten verschwinden.<br/><br/>
-    Wenn hier getötet wurde, dann nicht durch Gewalt – sondern durch Verwaltung.
-    `,
+    id: "S1_T4",
+    title: "Zentrale Entscheidungen ohne Untersuchung",
+    date: "1940–1941",
+    description:
+      `In den Akten findest du Hinweise auf eine zentral gesteuerte Entscheidungslogik, wie sie für die ${term("aktion_t4","Aktion T4")} typisch ist. Patienten wurden erfasst, bewertet und verlegt, ohne dass eine persönliche Untersuchung stattfand.`,
+
     evidence: [
       evidence.doc(
-        "Küchenabrechnung – Oktober 1944",
-        `
-        Station 17 / 18<br/>
-        Verpflegung: „Gemüseeintopf fettfrei“<br/>
-        Geschätzter Tageswert: unter 500 kcal<br/><br/>
-        Anordnung gegengezeichnet von: 
-        <span style="font-family:cursive">${term('pfannmueller', 'Pfannmüller')}</span>
-        `
+        "Ausgefüllter Meldebogen",
+        `Patient: Nr. 2714\nDiagnose: „Schwachsinn“\nArbeitsfähigkeit: „nein“\nAnmerkung: „Dauerpflegefall“\n→ Weitergeleitet an zentrale Stelle`
       ),
       evidence.doc(
-        "Sterbeliste – Vergleichsauszug",
-        `
-        Zeitraum: Jan–Okt 1944<br/>
-        Station 17: +38% Mortalität<br/>
-        Vergleichsstationen: keine Abweichung<br/><br/>
-        Vermerk: „natürlicher Verlauf“
-        `
-      ),
-      evidence.note(
-        "Schwester G. hat heute früh Listen aus dem Küchenbüro geholt. Ziel: Heizkeller."
+        "Rückanweisung",
+        `Vermerk: „Verlegung empfohlen“\nUnterschrift unleserlich\nDatum: 12.03.1941`
       )
     ],
+
     choices: [
       {
-        text: "Stillen Aktenabgleich durchführen (Sterbezahlen, Rationen, Stationen)",
-        effects: { res: 5, ev: 35 },
-        stamp: "DOKUMENTIERT",
+        text: "[REAL] Du rekonstruierst die Entscheidungslogik anhand der Formulare und Rückanweisungen.",
+        effects: { res: +12, ev: +22 },
+        stamp: "Systemnachweis",
         type: "procedural",
-        outcome: `
-        Sie arbeiten nachts. Keine Befragungen, keine Anordnungen.
-        Nur Zahlen, Zeitreihen, Unterschriften.
-        Das Muster ist eindeutig: Unterversorgung als Dauerzustand,
-        parallel steigende Mortalität auf exakt definierten Stationen.<br/><br/>
-        Es ist kein Versagen. Es ist Methode.
-        `,
-        historical: "Schmidt nutzte Statistik und Verwaltungslogik, um Mord als System sichtbar zu machen."
+        outcome:
+          "Du kannst zeigen, dass Entscheidungen formalisiert und entpersonalisiert getroffen wurden.",
+        historical:
+          "Historisch exakt: Entscheidungen basierten auf Aktenlage, nicht auf persönlicher Untersuchung. (Fn2)"
       },
       {
-        text: "Personal direkt zur Rede stellen",
-        effects: { res: 20, ev: 0 },
-        stamp: "KONFRONTIERT",
-        type: "naive",
-        outcome: `
-        Sie stellen Fragen. Am nächsten Tag fehlen Ordner.
-        Niemand bestreitet etwas – aber niemand erinnert sich.
-        „Kriegschaos“, „Verlegung“, „nicht zuständig“.<br/><br/>
-        Die Zahlen sind weg. Die Praxis bleibt.
-        `,
-        historical: "Offene Konfrontation führte häufig zu Beweisvernichtung."
-      },
-      {
-        text: "US-Militärregierung um sofortige Durchsuchung bitten",
-        effects: { res: 35, ev: 10 },
-        stamp: "ESKALIERT",
+        text: "Du suchst gezielt nach einzelnen verantwortlichen Ärzten.",
+        effects: { res: +6, ev: +8 },
+        stamp: "Personalisierung",
         type: "risk",
-        outcome: `
-        Bewaffnete Durchsuchung der Küche.
-        Das Personal blockiert, Unterlagen werden hektisch aussortiert.
-        Die Amerikaner sichern wenig Verwertbares und verlieren das Interesse.<br/><br/>
-        Sie haben Lärm erzeugt – aber keine Beweise.
-        `,
-        historical: "Gewaltsame Eingriffe führten selten zu belastbaren Akten."
+        outcome:
+          "Du findest Namen, aber der strukturelle Ablauf bleibt schwer belegbar.",
+        historical:
+          "Plausibel, aber unvollständig: Das System war wichtiger als Einzelpersonen. (Fn2)"
+      },
+      {
+        text: "Du dokumentierst nur die steigenden Todeszahlen.",
+        effects: { res: +2, ev: +4 },
+        stamp: "Statistik",
+        type: "passive",
+        outcome:
+          "Die Zahlen wirken auffällig, erklären aber den Mechanismus nicht.",
+        historical:
+          "Zu schwach für einen belastbaren Nachweis. (Fn2)"
       }
     ]
   },
+
+  // =====================
+  // SZENARIO 2 – KINDER-EUTHANASIE
+  // =====================
   {
-    id: "staff",
-    title: "Die 'Alte Garde'",
-    date: "30. Nov 1945",
-    description: `
-    Die Klinik funktioniert noch immer nach alten Routinen.
-    Stationsleitungen, Oberschwestern, Verwaltungsangestellte – viele waren während der NS-Zeit nicht nur Mitläufer, sondern Ausführende.<br/><br/>
-    Ohne sie bricht Organisation zusammen.
-    Mit ihnen bleibt das Verbrechen im Haus.<br/><br/>
-    Entnazifizierung ist kein Schalter. Sie ist ein Eingriff am offenen Betrieb.
-    `,
+    id: "S2_CHILDREN",
+    title: "Spezialabteilung für Kinder",
+    date: "1941–1943",
+    description:
+      `Mehrere Akten betreffen Kinder. Die Einweisungen sind mit medizinisch harmlosen Begriffen versehen – ein Muster, das auf die ${term("kinder_euthanasie","„Kinder-Euthanasie“")} hindeutet.`,
+
     evidence: [
-        evidence.doc("Personalakte (Auszug)", "Beurteilung 1944: 'Politisch zuverlässig, durchsetzungsstark, bewährt im Umgang mit schwierigen Pflegefällen'."),
-        evidence.note("Neue Kräfte nicht verfügbar. Ohne Stationsleitung keine Medikamentenausgabe.")
+      evidence.doc(
+        "Einweisungsverfügung",
+        `Kind: H., 6 Jahre\nGrund: „Behandlung mit special modern therapy“\nAbteilung: Sonderstation\nTodesdatum: 14 Tage nach Einweisung`
+      ),
+      evidence.note(
+        "Mehrere gleichlautende Formulierungen bei unterschiedlichen Kindern."
+      )
     ],
+
     choices: [
       {
-        text: "Belassen, aber entmachten (Dokumentationspflicht)",
-        effects: { res: 20, ev: 35 },
-        stamp: "KONTROLLIERT",
+        text: "[REAL] Du sammelst mehrere Kinderfälle und legst sie als zusammenhängendes Muster vor.",
+        effects: { res: +14, ev: +24 },
+        stamp: "Seriennachweis",
         type: "procedural",
-        outcome: "Der Betrieb bleibt stabil. Die Betroffenen sabotieren leise, aber sie müssen schreiben: Pflegeberichte, Übergaben, Medikation. Papier entsteht. Und Papier lügt schlecht.",
-        historical: "Das war Schmidts realistischster Weg. Er nutzte die Bürokratie zur Kontrolle."
+        outcome:
+          "Aus Einzelfällen wird ein belegbares System.",
+        historical:
+          "Historisch sehr nah an Schmidts Vorgehen bei Kinderfällen. (Fn3)"
       },
       {
-        text: "Sofortige Entlassung",
-        effects: { res: 30, ev: 10 },
-        stamp: "ENTLASSEN",
+        text: "Du behandelst jeden Fall einzeln, ohne sie zu verbinden.",
+        effects: { res: +4, ev: +10 },
+        stamp: "Einzelfall",
+        type: "procedural",
+        outcome:
+          "Die Belege bleiben angreifbar.",
+        historical:
+          "Plausibel, aber deutlich schwächer als eine Serienanalyse. (Fn3)"
+      },
+      {
+        text: "Du vermeidest Kinderfälle wegen der emotionalen Brisanz.",
+        effects: { res: -6, ev: -18 },
+        stamp: "Vermeidung",
+        type: "passive",
+        outcome:
+          "Ein zentraler Beweisstrang geht verloren.",
+        historical:
+          "Historisch ungünstig: Gerade diese Fälle sind gut belegbar. (Fn3)"
+      }
+    ]
+  },
+
+  // =====================
+  // SZENARIO 3 – HUNGERTOTE
+  // =====================
+  {
+    id: "S3_STARVATION",
+    title: "Unauffällige Todesursachen",
+    date: "1942–1944",
+    description:
+      `Die Sterbeakten zeigen eine Häufung von Todesursachen wie „Entkräftung“ oder „Lungenentzündung“. In Verbindung mit Rationsplänen deutet dies auf systematischen ${term("hungertod","Hungertod")} hin.`,
+
+    evidence: [
+      evidence.doc(
+        "Essensplan",
+        `Tagesration Station C:\nFrüh: Kaffeeersatz\nMittag: dünne Suppe\nAbend: entfällt`
+      ),
+      evidence.doc(
+        "Medikationsliste",
+        `Verabreicht: Luminal (Barbiturat)\nDosierung: regelmäßig`
+      )
+    ],
+
+    choices: [
+      {
+        text: "[REAL] Du verbindest Rationspläne, Medikation und Todesursachen.",
+        effects: { res: +18, ev: +26 },
+        stamp: "Methodennachweis",
+        type: "procedural",
+        outcome:
+          "Du kannst zeigen, dass der Tod gezielt herbeigeführt wurde.",
+        historical:
+          "Historisch belegt: Kombination aus Unterernährung und Sedierung. (Fn4)"
+      },
+      {
+        text: "Du dokumentierst nur die Todesursachen aus den Akten.",
+        effects: { res: +6, ev: +8 },
+        stamp: "Teilnachweis",
+        type: "procedural",
+        outcome:
+          "Die Ursachen wirken medizinisch erklärbar.",
+        historical:
+          "Unvollständig ohne Kontext der Versorgung. (Fn4)"
+      },
+      {
+        text: "Du verzichtest auf diesen Nachweis wegen fehlender direkter Befehle.",
+        effects: { res: -4, ev: -12 },
+        stamp: "Zurückhaltung",
+        type: "passive",
+        outcome:
+          "Ein zentraler Tötungsmechanismus bleibt verborgen.",
+        historical:
+          "Historisch ungünstig: Genau hier setzte Schmidt an. (Fn4)"
+      }
+    ]
+  },
+
+  // =====================
+  // SZENARIO 4 – VERSCHLEIERUNG
+  // =====================
+  {
+    id: "S4_COVER",
+    title: "Sprache als Werkzeug",
+    date: "1941–1944",
+    description:
+      `Die Akten verwenden durchgehend medizinisch harmlose Begriffe. Diese ${term("tarnsprache","Tarnsprache")} sorgt dafür, dass Todesfälle nach außen unauffällig erscheinen.`,
+
+    evidence: [
+      evidence.doc(
+        "Sterbeurkunde",
+        `Todesursache: „natürlicher Verlauf der Grunderkrankung“`
+      ),
+      evidence.note(
+        "Gleiche Formulierungen bei sehr unterschiedlichen Patienten."
+      )
+    ],
+
+    choices: [
+      {
+        text: "[REAL] Du weist nach, dass die Sprache systematisch zur Verschleierung genutzt wurde.",
+        effects: { res: +20, ev: +20 },
+        stamp: "Enttarnung",
+        type: "procedural",
+        outcome:
+          "Die Akten verlieren ihre Unschuld.",
+        historical:
+          "Zentraler Bestandteil der Rekonstruktion bei Schmidt. (Fn4)"
+      },
+      {
+        text: "Du akzeptierst die Begriffe als zeittypische Medizin.",
+        effects: { res: -2, ev: -10 },
+        stamp: "Naivität",
+        type: "passive",
+        outcome:
+          "Die Dokumente bleiben unangetastet.",
+        historical:
+          "Historisch nicht haltbar. (Fn4)"
+      },
+      {
+        text: "Du vermutest Verschleierung, belegst sie aber nicht.",
+        effects: { res: +6, ev: +2 },
+        stamp: "Vermutung",
         type: "risk",
-        outcome: "Chaos. Übergaben fehlen. Patienten liegen ungepflegt. Moralisch konsequent – praktisch tödlich.",
-        historical: "Entnazifizierung ohne Ersatzpersonal erzeugte oft neue Opfer."
-      },
-      {
-        text: "Persilscheine für Kooperation ausstellen",
-        effects: { res: -15, ev: -40 },
-        stamp: "AMNESTIE",
-        type: "naive",
-        outcome: "Ruhe. Lächeln. Loyalität. Und ein Verfahren, das später niemand mehr ernst nimmt.",
-        historical: "So entstanden Nachkriegslegenden von der 'sauberen' Belegschaft."
+        outcome:
+          "Angreifbar wegen fehlender Belege.",
+        historical:
+          "Ohne Nachweis bleibt es Spekulation. (Fn4)"
       }
     ]
   },
+
+  // =====================
+  // SZENARIO 5 – GESAMTBEWERTUNG
+  // =====================
   {
-    id: "luminal",
-    title: "Die Luminal-Bücher",
-    date: "05. Jan 1946",
-    description: `
-    In der Apotheke tauchen ungewöhnliche Bestellmengen auf.
-    ${term('luminal', 'Luminal')} ist kein Gift – aber jede Substanz ist es in der falschen Dosis.<br/><br/>
-    Niemand spricht von Mord.
-    Es spricht nur der Verbrauch.
-    `,
+    id: "S5_SYNTHESIS",
+    title: "System oder Einzelfälle?",
+    date: "1945–1946",
+    description:
+      "Du musst entscheiden, wie du die gesammelten Beweise präsentierst: als vereinzelte Verfehlungen oder als geschlossenes System.",
+
     evidence: [
-        evidence.doc("Bestellübersicht", "50-facher Jahresbedarf an Phenobarbital."),
-        evidence.doc("Ausgabebuch", "Diagnose stets: 'Sedierung'"),
-        evidence.note("Wenn heute nicht kopiert, morgen neu gebunden.")
+      evidence.doc(
+        "Zusammenfassung",
+        "Formulare, Verlegungen, Kinderfälle, Unterernährung und Sprachregelungen ergeben ein konsistentes Gesamtbild."
+      )
     ],
+
     choices: [
       {
-        text: "Therapiebedarf vs. Verbrauch berechnen",
-        effects: { res: 10, ev: 40 },
-        stamp: "ANALYSE",
+        text: "[REAL] Du präsentierst alles als zusammenhängendes System.",
+        effects: { res: +25, ev: +30 },
+        stamp: "Gesamtnachweis",
         type: "procedural",
-        outcome: "Die Zahlen passen nicht. Nicht zu Epilepsie. Nicht zu Unruhe. Nicht zu Medizin. Die Statistik wird zur Anklage.",
-        historical: "Schmidt nutzte Statistik als primäres Beweismittel."
+        outcome:
+          "Maximale Beweislast – massiver Widerstand.",
+        historical:
+          "Entspricht Schmidts tatsächlichem Vorgehen. (Fn1–Fn7)"
       },
       {
-        text: "Apotheke versiegeln",
-        effects: { res: 25, ev: 25 },
-        stamp: "VERSIEGELT",
-        type: "risk",
-        outcome: "Material gesichert, Fronten verhärtet. Ab jetzt ist jede Handlung im Haus ein Machtkampf.",
-        historical: "Harte Maßnahmen führten zu Blockaden."
-      },
-      {
-        text: "Informellen Deal anbieten",
-        effects: { res: -5, ev: 20 },
-        stamp: "HANDEL",
-        type: "naive",
-        outcome: "Sie bekommen Namen. Und verlieren saubere Verfahren.",
-        historical: "Deals beschädigten die Rechtsstaatlichkeit."
-      }
-    ]
-  },
-  {
-    id: "certs",
-    title: "Der Totenschein",
-    date: "10. Apr 1946",
-    description: `
-    Ein Kind stirbt heute.
-    Die Vorbehandlung war auffällig.
-    Die Todesminute liegt in Ihrer Amtszeit.<br/><br/>
-    Der Totenschein ist kein Formular.
-    Er ist eine Entscheidung.
-    `,
-    evidence: [
-        evidence.doc("Todesanzeige (Entwurf)", "Standarddiagnose: Lungenentzündung."),
-        evidence.note("Pflegebericht: Sedierung ohne Begründung. Mutter wartet draußen.")
-    ],
-    choices: [
-      {
-        text: "Standarddiagnose übernehmen",
-        effects: { res: -5, ev: -25 },
-        stamp: "BESTÄTIGT",
-        type: "naive",
-        outcome: "Ruhe. Und ein Mord, der verwaltet wird.",
-        historical: "Die bürokratische Kontinuität des Schweigens."
-      },
-      {
-        text: "Autopsie anordnen",
-        effects: { res: 15, ev: 30 },
-        stamp: "UNTERSUCHT",
+        text: "Du beschränkst dich auf die am besten belegten Teilaspekte.",
+        effects: { res: +10, ev: +14 },
+        stamp: "Kompromiss",
         type: "procedural",
-        outcome: "Beweise gesichert. Die Mutter bekommt keine Antworten – nur Zeit.",
-        historical: "Verzögerungstaktik zur Beweissicherung."
+        outcome:
+          "Solide, aber nicht vollständig.",
+        historical:
+          "Plausibel, aber weniger durchschlagskräftig."
       },
       {
-        text: "Intoxikation eintragen",
-        effects: { res: 35, ev: 40 },
-        stamp: "BEZEUGT",
-        type: "risk",
-        outcome: "Ab jetzt sind Sie Feind im eigenen Haus.",
-        historical: "Offene Wahrheiten waren gefährlich."
-      }
-    ]
-  },
-  {
-    id: "us_army",
-    title: "Besuch vom Major",
-    date: "14. Feb 1946",
-    description: `
-    Die US-Militärregierung will Gebäude für ${term('displaced', 'Displaced Persons')}.
-    Patienten gelten als verschiebbar.<br/><br/>
-    Für den Major ist es Logistik.
-    Für Sie ist es Seuchengefahr.
-    `,
-    evidence: [
-        evidence.doc("Requisitionsbefehl", "Sofortige Räumung Haus 12."),
-        evidence.doc("Hygienegutachten", "Überbelegung = Typhusgefahr.")
-    ],
-    choices: [
-      {
-        text: "Verweigern mit Seuchenschutzargument",
-        effects: { res: 10, ev: 10 },
-        stamp: "ABGEWEHRT",
-        type: "procedural",
-        outcome: "Der Major zieht ab. Nicht aus Einsicht, sondern aus Eigenschutz.",
-        historical: "Schmidt nutzte die Angst vor Seuchen als Schutzschild."
-      },
-      {
-        text: "Teilräumung anbieten (Zeit gewinnen)",
-        effects: { res: 5, ev: 5 },
-        stamp: "VERZÖGERT",
-        type: "naive",
-        outcome: "Bürokratie als Schild. Ein Kompromiss, der niemanden zufriedenstellt.",
-        historical: "Zeitgewinn war oft die einzige Strategie."
-      },
-      {
-        text: "Befehl ausführen",
-        effects: { res: -5, ev: 0 },
-        stamp: "AUSGEFÜHRT",
-        type: "naive",
-        outcome: "Niemand tötet. Trotzdem sterben Menschen durch die Enge.",
-        historical: "Gehorsam führte oft zu indirektem Tod."
-      }
-    ]
-  },
-  {
-    id: "winter",
-    title: "Der Hungerwinter",
-    date: "20. Dez 1946",
-    description: `
-    Kälte. Hunger. Mangel.
-    Kein Mord – aber dieselbe Konsequenz.<br/><br/>
-    Legalität schützt nicht vor Erfrierung.
-    `,
-    evidence: [
-        evidence.note("Lagerstand: 2 Tage Nahrung."),
-        evidence.doc("Angebot", "Kohle gegen Klinikmaterial (Morphium/Besteck).")
-    ],
-    choices: [
-      {
-        text: "Strikt legal bleiben",
-        effects: { res: 0, ev: 0 },
-        stamp: "LEGAL",
-        type: "naive",
-        outcome: "Ordnung. Tote.",
-        historical: "Der legale Weg führte oft in den Tod."
-      },
-      {
-        text: "Pragmatischer Tausch",
-        effects: { res: 5, ev: 0 },
-        stamp: "ORGANISIERT",
-        type: "procedural",
-        outcome: "Leben gerettet. Sie sind erpressbar.",
-        historical: "Pragmatismus am Rande der Legalität war notwendig."
-      },
-      {
-        text: "Rationierung nach Erfolgsaussicht",
-        effects: { res: -10, ev: -50 },
-        stamp: "SELEKTIERT",
-        type: "risk",
-        outcome: "Sie übernehmen exakt die Logik der Täter.",
-        historical: "Ein Rückfall in die NS-Denkweise unter Stress."
-      }
-    ]
-  },
-  {
-    id: "brains",
-    title: "Die Gehirnpräparate",
-    date: "15. Mär 1947",
-    description: `
-    Im Labor stehen Gläser.
-    Kindergehirne. Nummeriert.<br/><br/>
-    Forschung, sagen die Täter.
-    Beweis, sagen Sie.
-    Grab, sagen die Angehörigen.
-    `,
-    evidence: [
-        evidence.doc("Inventarliste", "300 Präparate aus der Kinderfachabteilung."),
-        evidence.note("Keine Einwilligungen dokumentiert.")
-    ],
-    choices: [
-      {
-        text: "Als Beweismittel sichern",
-        effects: { res: 15, ev: 30 },
-        stamp: "GESICHERT",
-        type: "procedural",
-        outcome: "Unerträglich. Notwendig.",
-        historical: "Die Präparate dienten als stumme Zeugen."
-      },
-      {
-        text: "Bestattung anordnen",
-        effects: { res: -5, ev: -30 },
-        stamp: "BEGRABEN",
-        type: "naive",
-        outcome: "Menschlich. Historisch fatal.",
-        historical: "Die schnelle Bestattung hätte die Aufklärung behindert."
-      },
-      {
-        text: "An Militärregierung übergeben",
-        effects: { res: 0, ev: -5 },
-        stamp: "ÜBERGEBEN",
-        type: "naive",
-        outcome: "Verantwortung abgegeben. Kontrolle verloren.",
-        historical: "Verantwortung abzugeben war oft der schlechteste Weg."
+        text: "Du stellst alles als ungeklärte Einzelfälle dar.",
+        effects: { res: -10, ev: -20 },
+        stamp: "Relativierung",
+        type: "passive",
+        outcome:
+          "Die Aufarbeitung scheitert.",
+        historical:
+          "Historisch falsch und quellenwidrig."
       }
     ]
   }
 ];
 
-/* ==================================================================================
-   SECTION 2: GAME ENGINE (REACT)
-   ================================================================================== */
+// =====================
+// FOOTNOTES (unchanged content; still only at the end)
+// =====================
+const FOOTNOTES = {
+  Fn1:
+    "Schmidt, Gerhard: Schmidt Testimony on the Euthanasia Program, Affidavit (28 March 1946), PDF-S. 1: „open secret“ / „could not give any official answer“.",
+  Fn2:
+    "Schmidt, Gerhard: Schmidt Testimony on the Euthanasia Program, Affidavit (28 March 1946), PDF-S. 1: Fragebögen → zentrale Stelle Berlin → Rückorder/Verlegung; Tötung häufig durch Injektionen.",
+  Fn3:
+    "Schmidt, Gerhard: Schmidt Testimony on the Euthanasia Program, Affidavit (28 March 1946), PDF-S. 1: Kinderfälle / „special modern therapy“; Verknüpfung mit Tötung.",
+  Fn4:
+    "Schmidt, Gerhard: Schmidt Testimony on the Euthanasia Program, Affidavit (28 March 1946), PDF-S. 2: slow starvation; Konferenz Ende 1942 im Bavarian Ministry of the Interior; Tarnung als „natural death“.",
+  Fn5:
+    "Schmidt, Gerhard: Schmidt Testimony on the Euthanasia Program, Affidavit (28 March 1946), PDF-S. 2: Viele Getötete wären zu einfacher Arbeit fähig gewesen („able to perform … simple work“).",
+  Fn6:
+    "Jaspers, Karl: Geleitwort, in: Schmidt, Gerhard: Selektion in der Heilanstalt 1939–1945 (Neuausgabe, hrsg. von Frank Schneider), PDF-S. 10–11: Bedeutung der Dokumentation/Übergangszeit 1945.",
+  Fn7:
+    "Schneider, Frank: Geleitwort, in: Schmidt, Gerhard: Selektion in der Heilanstalt 1939–1945 (Neuausgabe, hrsg. von Frank Schneider), PDF-S. 5–6: frühe öffentliche Thematisierung; Publikationswiderstände."
+};
+
+
 
 export default function App() {
   const [screen, setScreen] = useState('bio'); 
@@ -436,7 +403,6 @@ export default function App() {
   const [scenarioIndex, setScenarioIndex] = useState(0);
   const [introStep, setIntroStep] = useState(0); 
   
-  // Visual & Feedback States
   const [resDelta, setResDelta] = useState(null);
   const [evDelta, setEvDelta] = useState(null);
   const [shake, setShake] = useState(false);
@@ -456,7 +422,15 @@ export default function App() {
 
   const currentScenario = GAME_SCENARIOS[scenarioIndex];
 
-  // --- Logic: Descriptions & Positions ---
+  const shuffledChoices = useMemo(() => {
+    const choices = [...currentScenario.choices];
+    for (let i = choices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [choices[i], choices[j]] = [choices[j], choices[i]];
+    }
+    return choices;
+  }, [currentScenario]);
+
   const currentDescription = useMemo(() => {
     if (currentScenario.description) return currentScenario.description;
     if (currentScenario.descVariants) {
@@ -475,7 +449,6 @@ export default function App() {
     }));
   }, [scenarioIndex, currentScenario]);
 
-  // --- Logic: Interactions ---
   const handleGlobalClick = (e) => {
     const termLink = e.target.closest('.term-link');
     if (termLink) {
@@ -580,7 +553,6 @@ export default function App() {
       }
   };
 
-  // --- ACTUAL GEMINI INTEGRATION ---
   const triggerEndGame = async () => {
     setScreen('end');
     setIsGenerating(true);
@@ -661,22 +633,46 @@ export default function App() {
     }
   };
 
-  const getFallbackReport = (ev, res) => {
-    let grade = "GESCHEITERT";
-    let gradeColor = "text-red-900";
-    if (ev > 80 && res < 40) { grade = "EXEMPLARISCH"; gradeColor = "text-green-900"; }
-    else if (ev > 70) { grade = "ERFOLGREICH"; gradeColor = "text-green-700"; }
-    else if (ev > 40) { grade = "ZWIESPÄLTIG"; gradeColor = "text-yellow-800"; }
-    else if (res > 80) { grade = "BLOCKIERT"; gradeColor = "text-red-800"; }
-    return {
-      grade, gradeColor, stats: { ev, res },
-      legal: "Beweislage reicht nur für Verfahren wegen Fahrlässigkeit.",
-      social: "Ungewissheit belastet Angehörige generationenübergreifend.",
-      history: "Legendenbildung dominiert den Diskurs.",
-      internal: "Massive Obstruktion durch Altpersonal.",
-      isApi: false 
-    };
+const getFallbackReport = (ev, res) => {
+  // Grade
+  let grade = "GESCHEITERT";
+  let gradeColor = "text-red-900";
+
+  if (ev >= 85 && res <= 45) { grade = "EXEMPLARISCH"; gradeColor = "text-green-900"; }
+  else if (ev >= 70 && res <= 65) { grade = "ERFOLGREICH"; gradeColor = "text-green-700"; }
+  else if (ev >= 45) { grade = "ZWIESPÄLTIG"; gradeColor = "text-yellow-800"; }
+  else if (res >= 80) { grade = "BLOCKIERT"; gradeColor = "text-red-800"; }
+
+  // Textbausteine (abhängig von ev/res, nicht stumpf negativ)
+  const legal =
+    ev >= 85 ? "Beweislage trägt strukturierte Ermittlungen; mehrere Verantwortungsstränge sind dokumentierbar." :
+    ev >= 70 ? "Beweislage reicht für belastbare Verfahren, aber einzelne Kettenglieder bleiben angreifbar." :
+    ev >= 45 ? "Beweislage ist fragmentarisch; Verfahren laufen Gefahr, an Lücken zu scheitern." :
+               "Beweislage bleibt überwiegend Hörensagen; juristische Konsequenzen sind begrenzt.";
+
+  const social =
+    ev >= 70 ? "Angehörige erhalten erstmals eine nachvollziehbare Rekonstruktion; Unsicherheit nimmt ab." :
+    ev >= 45 ? "Teilaufklärung entlastet einzelne Familien, lässt aber viele Fragen offen." :
+               "Ungewissheit bleibt dominierend und wirkt über Generationen nach.";
+
+  const history =
+    (ev >= 85 && res >= 60) ? "Dokumentation ist stark, aber das Vorgehen polarisiert: Aufklärung gegen institutionelle Abwehr." :
+    (ev >= 70) ? "Die Arbeit gilt als wichtiger Beitrag zur Aufarbeitung, trotz verbleibender Lücken." :
+    (ev >= 45) ? "Historisch bleibt das Ergebnis ambivalent: richtige Richtung, aber zu wenig Durchschlagskraft." :
+                 "Die Aufarbeitung verpufft; spätere Deutung wird von Fremdnarrativen geprägt.";
+
+  const internal =
+    res >= 80 ? "Klinikbetrieb ist durch offene Obstruktion gelähmt; Informationszugang bricht wiederholt weg." :
+    res >= 60 ? "Altpersonal blockiert passiv: Verzögerungen, Schweigen, selektive Aktenzugänge." :
+    res >= 40 ? "Kooperation ist wechselhaft; einzelne Bereiche arbeiten mit, andere ziehen sich zurück." :
+                "Interner Widerstand bleibt kontrollierbar; Kooperation ist überwiegend vorhanden.";
+
+  return {
+    grade, gradeColor, stats: { ev, res },
+    legal, social, history, internal,
+    isApi: false
   };
+};
 
   return (
     <div className={`h-screen w-screen flex flex-col bg-[#1a1a1a] text-[#333] font-courier overflow-hidden select-none ${shake ? 'animate-shake' : ''}`} onClick={handleGlobalClick}>
@@ -736,7 +732,7 @@ export default function App() {
             </div>
             <div className="flex items-center gap-2 relative">
               <div className="bg-[#000] border border-[#333] h-4 w-32 relative overflow-hidden rounded-sm shadow-inner">
-                {/* Ghost Bar for animation feel */}
+                {/* Ghost Bar for animation */}
                 <div className="absolute h-full bg-red-900 opacity-50 transition-all duration-1000 ease-out" style={{ width: `${resistance}%` }}></div>
                 <div className={`h-full transition-all duration-300 ease-out ${resistance < 30 ? 'bg-green-600' : resistance < 60 ? 'bg-yellow-600' : 'bg-red-600'}`} style={{ width: `${resistance}%` }}></div>
               </div>
@@ -768,7 +764,7 @@ export default function App() {
         
         {/* Screen: BIO (3 Slides) */}
         {screen === 'bio' && (
-          <div key={introStep} className="absolute z-40 max-w-3xl w-full bg-[#f4f1ea] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 animate-slide-in flex flex-col md:flex-row gap-8 border-t-8 border-gray-800 rotate-1">
+          <div className="absolute z-40 max-w-3xl w-full bg-[#f4f1ea] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 animate-slide-in flex flex-col md:flex-row gap-8 border-t-8 border-gray-800 rotate-1">
             <div className="w-full md:w-1/3 flex flex-col items-center border-r-2 border-gray-300 pr-4 border-dashed justify-center">
               <div className="w-40 h-40 bg-gray-200 shadow-inner mb-4 flex items-center justify-center border-4 border-white transform rotate-2 relative overflow-hidden grayscale contrast-125 rounded-full">
                 {INTRO_SLIDES[introStep].icon}
@@ -818,7 +814,7 @@ export default function App() {
         {screen === 'start' && (
           <div className="absolute z-30 max-w-2xl w-full bg-[#f4f1ea] shadow-2xl p-10 rotate-1 animate-slide-in border border-gray-300">
             <h1 className="text-5xl font-bold mb-4 font-typewriter text-gray-900 text-center border-b-4 border-double border-gray-800 pb-4">VERWALTUNG DER VERGANGENHEIT</h1>
-            <p className="mb-6 text-justify leading-relaxed font-serif-custom text-lg">Sie übernehmen die Rolle von Dr. Schmidt. Jede Entscheidung hat Konsequenzen für die Beweislage in den Nürnberger Prozessen und den Widerstand in Ihrer eigenen Klinik.</p>
+            <p className="mb-6 text-justify leading-relaxed font-serif-custom text-lg">Du übernimmst die Rolle von Dr. Schmidt. Jede Entscheidung hat Konsequenzen für die Beweislage in den Nürnberger Prozessen und den Widerstand in deiner Klinik.</p>
             <div className="flex justify-center">
               <button onClick={() => setScreen('game')} className="bg-red-900 text-white px-8 py-4 hover:bg-red-800 transition font-mono shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none font-bold text-xl flex items-center gap-2">
                 <Stamp size={24}/> DIENST BEGINNEN
@@ -855,12 +851,12 @@ export default function App() {
                   {resistance > 50 && <span className="text-red-700 font-bold text-xs flex items-center gap-1 animate-pulse"><AlertTriangle size={14} /> Hohes Risiko</span>}
                 </div>
                 
-                <h3 className="text-3xl font-bold mb-4 font-typewriter text-gray-900 leading-tight">{currentScenario.title}</h3>
+                <h3 className="text-3xl font-bold mb-4 font-typewriter text-gray-900 leading-tight" dangerouslySetInnerHTML={{ __html: currentScenario.title }} />
                 
                 <div className="bg-white/50 p-4 border border-gray-300 shadow-inner mb-6 h-48 overflow-y-auto font-serif-custom text-base leading-relaxed text-gray-900 rounded" dangerouslySetInnerHTML={{ __html: currentDescription }} />
                 
                 <div className="mt-auto space-y-3">
-                   {currentScenario.choices.map((choice, i) => (
+                   {shuffledChoices.map((choice, i) => (
                         <button 
                             key={i} 
                             onClick={() => handleChoice(choice)} 
@@ -870,7 +866,7 @@ export default function App() {
                           <span className="font-bold text-sm text-gray-800 pl-3 group-hover:text-black">
                             <span className="text-xs text-gray-500 uppercase mr-2 font-mono group-hover:text-amber-700">Option {String.fromCharCode(65+i)}</span>
                             <br/>
-                            {choice.text}
+                            <span dangerouslySetInnerHTML={{ __html: choice.text }} />
                           </span>
                           <Stamp size={16} className="text-gray-300 group-hover:text-amber-600 transform group-hover:rotate-12 transition-all"/>
                         </button>
@@ -894,7 +890,6 @@ export default function App() {
                     }}
                   >
                     {item.type === 'paper' && <div className="absolute top-0 left-0 w-full h-4 bg-gray-200 border-b border-gray-300"></div>}
-                    {/* UPDATED: removed pointer-events-none to allow clicking inner terms */}
                     <div className="opacity-90" dangerouslySetInnerHTML={{ __html: item.content }} />
                   </div>
                 ))}
