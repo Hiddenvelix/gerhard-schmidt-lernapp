@@ -126,7 +126,7 @@ const GAME_SCENARIOS = [
 
     choices: [
       {
-        text: "[REAL] Du rekonstruierst die Entscheidungslogik anhand der Formulare und Rückanweisungen.",
+        text: "Du rekonstruierst die Entscheidungslogik anhand der Formulare und Rückanweisungen.",
         effects: { res: +12, ev: +22 },
         stamp: "Systemnachweis",
         type: "procedural",
@@ -180,7 +180,7 @@ const GAME_SCENARIOS = [
 
     choices: [
       {
-        text: "[REAL] Du sammelst mehrere Kinderfälle und legst sie als zusammenhängendes Muster vor.",
+        text: "Du sammelst mehrere Kinderfälle und legst sie als zusammenhängendes Muster vor.",
         effects: { res: +14, ev: +24 },
         stamp: "Seriennachweis",
         type: "procedural",
@@ -235,7 +235,7 @@ const GAME_SCENARIOS = [
 
     choices: [
       {
-        text: "[REAL] Du verbindest Rationspläne, Medikation und Todesursachen.",
+        text: "Du verbindest Rationspläne, Medikation und Todesursachen.",
         effects: { res: +18, ev: +26 },
         stamp: "Methodennachweis",
         type: "procedural",
@@ -289,7 +289,7 @@ const GAME_SCENARIOS = [
 
     choices: [
       {
-        text: "[REAL] Du weist nach, dass die Sprache systematisch zur Verschleierung genutzt wurde.",
+        text: "Du weist nach, dass die Sprache systematisch zur Verschleierung genutzt wurde.",
         effects: { res: +20, ev: +20 },
         stamp: "Enttarnung",
         type: "procedural",
@@ -340,7 +340,7 @@ const GAME_SCENARIOS = [
 
     choices: [
       {
-        text: "[REAL] Du präsentierst alles als zusammenhängendes System.",
+        text: "Du präsentierst alles als zusammenhängendes System.",
         effects: { res: +25, ev: +30 },
         stamp: "Gesamtnachweis",
         type: "procedural",
